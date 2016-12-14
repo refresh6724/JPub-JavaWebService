@@ -1,0 +1,169 @@
+import org.joda.time.DateTime
+
+buildscript {
+    repositories { jcenter() }
+    dependencies {
+
+        classpath("org.hidetake:gradle-ssh-plugin:2.7.0")
+        classpath("joda-time:joda-time:2.9.5")
+    }
+}
+
+apply plugin: 'org.hidetake.ssh'
+
+loadConfiguration()
+
+def loadConfiguration() {
+
+    def environment
+    if( hasProperty('env') ) {
+        environment = getProperty('env')
+    }
+    else
+    {
+        environment = 'local'
+    }
+    println "environment = ${environment}"
+
+    ext.environment = environment
+    println "Environment is set to: $environment"
+
+    def target
+    if( hasProperty('target') ) {
+        target = getProperty('target')
+    }
+    else
+    {
+        target = ''
+    }
+
+    ext.target = target
+    println "target is set to: $target"
+
+//    String srcDir = "/elsClient/src/main/resources-repo/"
+//    String dstDir = "/elsClient/src/main/resources/"
+
+    File current = new File(".")
+    String currPath = current.getCanonicalPath()
+    println "current Path : " + currPath
+
+    String srcDir = "/src/main/resources-repo/"
+    String dstDir = "/src/main/resources/"
+
+    println "srcDir = $srcDir"
+    println "dstDir = $dstDir"
+
+
+    //String currPath = current.getCanonicalPath()
+
+    File srcPath = new File(currPath + srcDir + "application-${environment}${target}.properties")
+    File dstPath = new File(currPath + dstDir + "application.properties")
+
+    println currPath + srcDir + "application-${environment}${target}.properties"
+
+    org.gradle.util.GFileUtils.copyFile(srcPath, dstPath)
+
+}
+
+remotes {
+    bootApp {
+        println "deploy environment = $environment"
+        if ('dev' == environment) {
+            host = '192.168.44.133'
+            user = 'jins'
+            password = '''qwer1234'''
+            knownHosts = allowAnyHosts
+
+
+        } else if ('prod' == environment) {
+            host = '127.0.0.1'
+            port = 10000
+            user = 'null'
+            password = '''null'''
+            knownHosts = allowAnyHosts
+        } else {
+            // local
+            host = '127.0.0.1'
+            user = 'ttpdev'
+            password = '''asdf123$'''
+            knownHosts = allowAnyHosts
+        }
+    }
+}
+
+task deploy << {
+    ssh.run {
+
+        session(remotes.namuApp) {
+
+            println "deploy to " + remotes
+            println "target is ${target}"
+
+            String cmd = ""
+            DateTime now = DateTime.now()
+            String nowTime = now.toString('yyyyMMdd_HHmmss')
+
+            //String parentDir = "/usr/share/local/"
+            String parentDir
+            if(environment == 'prod') {
+                parentDir = "/home/deploy1201/"
+            } else if ( environment == 'dev') {
+                parentDir = "/home/jins/"
+            }
+            String
+            String baseRemoteDir = parentDir + "boot${target}/"
+            String backupPath = parentDir + "backupbootapp${target}/" + nowTime + '/'
+
+            // 폴더 생성
+            cmd = 'mkdir -p ' + backupPath
+            println cmd
+            execute( cmd )
+
+            cmd = 'mkdir -p ' + baseRemoteDir
+            println cmd
+            execute( cmd )
+
+            // 프로세스 중지
+            cmd = baseRemoteDir + "stop${target}.sh"
+            println cmd
+            executeScript( cmd , ignoreError: true)
+
+            // 백업
+            cmd = 'mv ' + baseRemoteDir + '* ' + backupPath
+            println cmd
+            execute( cmd , ignoreError: true )
+
+            println "Copy files to Remote..."
+
+            // 파일 업로드
+            put from: "src/main/resources-repo/application-${environment}${target}.properties" , into: baseRemoteDir
+
+      //      put from: "src/main/resources/logback.xml" , into: baseRemoteDir
+
+            put from: "script/start${target}.sh" , into: baseRemoteDir
+            put from: "script/stop${target}.sh" , into: baseRemoteDir
+            put from: "build/libs/*.jar" , into: baseRemoteDir
+
+            // 파일 실행 권한
+            cmd = 'chmod 755 ' + baseRemoteDir + '*.sh'
+            println cmd
+            execute( cmd )
+
+            // 실행
+            cmd = baseRemoteDir + "start${target}.sh"
+            println 'start cmd : ' + cmd
+            executeScript( cmd , ignoreError: true)
+
+            println 'before sleep' + new Date()
+            sleep 1000
+            println 'after sleep' + new Date()
+
+            execute( 'ps -ef | grep -v grep | grep java'  , ignoreError: true )
+
+        }
+
+    }
+}
+
+
+deploy.dependsOn assemble

@@ -2,8 +2,8 @@ apply plugin: 'java'
 apply plugin: 'eclipse'
 apply plugin: 'idea'
 apply plugin: 'spring-boot'
-apply plugin: 'war'
-apply from: 'gradle/cargo.gradle'
+//apply from: 'gradle/cargo.gradle'
+apply from: 'gradle/scp.gradle'
 
 buildscript{
   repositories{
@@ -42,10 +42,12 @@ repositories {
 
 dependencies {
     compile 'org.springframework.boot:spring-boot-starter-web'
-    providedRuntime 'org.springframework.boot:spring-boot-starter-tomcat'
+    //providedRuntime 'org.springframework.boot:spring-boot-starter-tomcat'
     compile 'org.slf4j:slf4j-api:1.7.7'
 
     compile("org.springframework.boot:spring-boot-starter-hateoas")
+
+    compile("joda-time:joda-time:2.9.5")
 
     //db
     compile group: 'org.hsqldb', name: 'hsqldb', version:'2.3.2'
