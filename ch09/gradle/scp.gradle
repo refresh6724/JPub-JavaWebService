@@ -1,13 +1,5 @@
-import org.joda.time.DateTime
 
-buildscript {
-    repositories { jcenter() }
-    dependencies {
 
-        classpath("org.hidetake:gradle-ssh-plugin:2.7.0")
-        classpath("joda-time:joda-time:2.9.5")
-    }
-}
 
 apply plugin: 'org.hidetake.ssh'
 
@@ -69,101 +61,84 @@ remotes {
     bootApp {
         println "deploy environment = $environment"
         if ('dev' == environment) {
-            host = '192.168.44.133'
+            host = '192.168.44.134'
             user = 'jins'
             password = '''qwer1234'''
             knownHosts = allowAnyHosts
-
-
-        } else if ('prod' == environment) {
-            host = '127.0.0.1'
-            port = 10000
-            user = 'null'
-            password = '''null'''
-            knownHosts = allowAnyHosts
-        } else {
-            // local
-            host = '127.0.0.1'
-            user = 'ttpdev'
-            password = '''asdf123$'''
-            knownHosts = allowAnyHosts
         }
     }
-}
 
-task deploy << {
-    ssh.run {
+    task deploy << {
+        ssh.run {
 
-        session(remotes.namuApp) {
+            session(remotes.bootApp) {
 
-            println "deploy to " + remotes
-            println "target is ${target}"
+                println "deploy to " + remotes
+                println "target is ${target}"
 
-            String cmd = ""
-            DateTime now = DateTime.now()
-            String nowTime = now.toString('yyyyMMdd_HHmmss')
+                String cmd = ""
+                String nowTime = new Date().format( 'yyyyMMdd_HHmmss' )
 
-            //String parentDir = "/usr/share/local/"
-            String parentDir
-            if(environment == 'prod') {
-                parentDir = "/home/deploy1201/"
-            } else if ( environment == 'dev') {
-                parentDir = "/home/jins/"
+
+                //String parentDir = "/usr/share/local/"
+                String parentDir
+                if (environment == 'dev') {
+                    parentDir = "/home/jins/deployjar"
+                }
+
+                String baseRemoteDir = parentDir + "boot${target}/"
+                String backupPath = parentDir + "backupbootapp${target}/" + nowTime + '/'
+
+                // 폴더 생성
+                cmd = 'mkdir -p ' + backupPath
+                println cmd
+                execute(cmd)
+
+                cmd = 'mkdir -p ' + baseRemoteDir
+                println cmd
+                execute(cmd)
+
+                // 프로세스 중지
+                cmd = baseRemoteDir + "stop${target}.sh"
+                println cmd
+                executeScript(cmd, ignoreError: true)
+
+                // 백업
+                cmd = 'mv ' + baseRemoteDir + '* ' + backupPath
+                println cmd
+                execute(cmd, ignoreError: true)
+
+                println "Copy files to Remote..."
+
+                // 파일 업로드
+                put from: "src/main/resources-repo/application-${environment}${target}.properties", into: baseRemoteDir
+
+                //      put from: "src/main/resources/logback.xml" , into: baseRemoteDir
+
+                put from: "script/start${target}.sh", into: baseRemoteDir
+                put from: "script/stop${target}.sh", into: baseRemoteDir
+                put from: "build/libs/*.jar", into: baseRemoteDir
+
+                // 파일 실행 권한
+                cmd = 'chmod 755 ' + baseRemoteDir + '*.sh'
+                println cmd
+                execute(cmd)
+
+                // 실행
+                cmd = baseRemoteDir + "start${target}.sh"
+                println 'start cmd : ' + cmd
+                executeScript(cmd, ignoreError: true)
+
+                println 'before sleep' + new Date()
+                sleep 1000
+                println 'after sleep' + new Date()
+
+                execute('ps -ef | grep -v grep | grep java', ignoreError: true)
+
             }
-            String
-            String baseRemoteDir = parentDir + "boot${target}/"
-            String backupPath = parentDir + "backupbootapp${target}/" + nowTime + '/'
-
-            // 폴더 생성
-            cmd = 'mkdir -p ' + backupPath
-            println cmd
-            execute( cmd )
-
-            cmd = 'mkdir -p ' + baseRemoteDir
-            println cmd
-            execute( cmd )
-
-            // 프로세스 중지
-            cmd = baseRemoteDir + "stop${target}.sh"
-            println cmd
-            executeScript( cmd , ignoreError: true)
-
-            // 백업
-            cmd = 'mv ' + baseRemoteDir + '* ' + backupPath
-            println cmd
-            execute( cmd , ignoreError: true )
-
-            println "Copy files to Remote..."
-
-            // 파일 업로드
-            put from: "src/main/resources-repo/application-${environment}${target}.properties" , into: baseRemoteDir
-
-      //      put from: "src/main/resources/logback.xml" , into: baseRemoteDir
-
-            put from: "script/start${target}.sh" , into: baseRemoteDir
-            put from: "script/stop${target}.sh" , into: baseRemoteDir
-            put from: "build/libs/*.jar" , into: baseRemoteDir
-
-            // 파일 실행 권한
-            cmd = 'chmod 755 ' + baseRemoteDir + '*.sh'
-            println cmd
-            execute( cmd )
-
-            // 실행
-            cmd = baseRemoteDir + "start${target}.sh"
-            println 'start cmd : ' + cmd
-            executeScript( cmd , ignoreError: true)
-
-            println 'before sleep' + new Date()
-            sleep 1000
-            println 'after sleep' + new Date()
-
-            execute( 'ps -ef | grep -v grep | grep java'  , ignoreError: true )
 
         }
-
     }
 }
-
 
 deploy.dependsOn assemble

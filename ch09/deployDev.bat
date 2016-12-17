@@ -1,1 +1,1 @@
-gradle clean deploy -Penv=dev -Ptarget=1
+gradle clean deploy -Penv=dev

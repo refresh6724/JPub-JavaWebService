@@ -28,7 +28,7 @@ if [ ! -x "$JAVA" ]; then
     exit 1
 fi
 
-exec "$JAVA" $DEFAULT_JVM_OPTS $CONF_OPTS -jar $BASE_PATH/elsClient.jar 2> /dev/null 1>&2 &
+exec nohup "$JAVA" $DEFAULT_JVM_OPTS $CONF_OPTS -jar $BASE_PATH/elsClient.jar 2> /dev/null 1>&2 &
 retval=$?
 pid=$!
 
