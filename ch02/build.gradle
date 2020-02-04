@@ -7,12 +7,10 @@ buildscript{
     }
 }
 apply plugin: 'java'
-apply plugin: 'war'
-
-apply plugin: 'org.akhikhl.gretty'
-
 apply plugin: 'eclipse'
 apply plugin: 'idea'
+apply plugin: 'war'
+apply plugin: 'org.akhikhl.gretty'
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
@@ -26,7 +24,9 @@ compileJava.options.encoding = 'UTF-8'
 dependencies {
     compile 'org.slf4j:slf4j-api:1.7.7'
     testCompile 'junit:junit:4.12'
-    providedCompile 'javax.servlet:javax.servlet-api:3.1.0'
+    // providedCompile 'javax.servlet:javax.servlet-api:3.1.0'
+    // https://mvnrepository.com/artifact/javax.servlet/javax.servlet-api
+    providedCompile group: 'javax.servlet', name: 'javax.servlet-api', version: '4.0.1'
 }
 
 gretty{
@@ -36,11 +36,20 @@ gretty{
 }
 
 
-   def webappDir = "$rootDir/src/main/webapp"
+def webappDir = "$rootDir/src/main/webapp"
 
 eclipse{
     classpath{
         downloadSources = true
         defaultOutputDir = file("${buildDir}/classes/main")
+    }
+}
+
+idea{
+    module{
+        downloadSources = true
+        downloadJavadoc = false
+        inheritOutputDirs = false
+        outputDir = file("${buildDir}/classes/main")
     }
 }
